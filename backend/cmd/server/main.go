@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io/fs"
 	"net/http"
 	"os"
 	"os/signal"
@@ -22,6 +23,7 @@ import (
 	"github.com/worryzyy/upstream-hub/internal/notify"
 	"github.com/worryzyy/upstream-hub/internal/scheduler"
 	"github.com/worryzyy/upstream-hub/internal/storage"
+	"github.com/worryzyy/upstream-hub/web"
 
 	// 注册 connector 实现。
 	_ "github.com/worryzyy/upstream-hub/internal/connector/newapi"
@@ -103,6 +105,16 @@ func main() {
 		_ = router.SetTrustedProxies(cfg.Server.TrustedProxies)
 	}
 
+	// 仅在嵌入了真实前端产物时挂载静态 handler。
+	// 本地 `go run` 跑出来的二进制 dist 是空占位，此时由 vite dev server 接管 :3010。
+	var frontendFS fs.FS
+	if web.HasFrontend() {
+		frontendFS = web.DistFS()
+		log.Info("frontend embedded, serving SPA on /")
+	} else {
+		log.Info("no embedded frontend, run vite dev server separately for UI")
+	}
+
 	api.Register(router, &api.Deps{
 		DB:         db,
 		Cipher:     cipher,
@@ -117,6 +129,7 @@ func main() {
 		Monitor:    monitorSvc,
 		Dispatcher: dispatcher,
 		Log:        log,
+		Frontend:   frontendFS,
 	})
 
 	srv := &http.Server{

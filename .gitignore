@@ -34,6 +34,11 @@ frontend/dist/
 frontend/.vite/
 frontend/.turbo/
 
+# Embedded frontend dist — 仓库里只保留 .gitkeep 占位，
+# 真实 dist 在 docker build 阶段由 frontend-builder 填充。
+backend/web/dist/*
+!backend/web/dist/.gitkeep
+
 # OS
 .DS_Store
 Thumbs.db
@@ -48,7 +53,7 @@ CLAUDE.md
 # Temporarily excluded
 README.md
 docker-compose.yml
-backend/Dockerfile
+Dockerfile
 docs/
 
 # Frontend build info

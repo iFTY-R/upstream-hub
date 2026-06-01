@@ -4,8 +4,10 @@
 package api
 
 import (
+	"io/fs"
 	"log/slog"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/worryzyy/upstream-hub/internal/auth"
@@ -32,6 +34,9 @@ type Deps struct {
 	Monitor    *monitor.Service
 	Dispatcher *notify.Dispatcher
 	Log        *slog.Logger
+
+	// Frontend 可选：传入嵌入的前端 dist 文件系统。nil 表示不挂载（本地开发用 vite dev server）。
+	Frontend fs.FS
 }
 
 // Register 把所有路由挂到给定 gin engine。
@@ -66,6 +71,42 @@ func Register(r *gin.Engine, d *Deps) {
 		registerMonitorLogs(api, d)
 		registerDashboard(api, d)
 	}
+
+	if d.Frontend != nil {
+		registerFrontend(r, d.Frontend)
+	}
+}
+
+// registerFrontend 把嵌入的前端 dist 挂在根路径，并处理 SPA fallback：
+//
+//   - GET /assets/*  → 直接返回文件
+//   - GET /          → 返回 index.html
+//   - GET /channels  → 返回 index.html（React Router 客户端路由）
+//
+// /api/*、/healthz 都已被前面的具体路由占了，不会走到这里。
+// 安全起见仍然做一次前缀拦截，避免任何意外情况下"未鉴权读 index.html"压到 /api 上。
+func registerFrontend(r *gin.Engine, dist fs.FS) {
+	fileServer := http.FileServer(http.FS(dist))
+
+	r.NoRoute(func(c *gin.Context) {
+		path := c.Request.URL.Path
+
+		// 永远不让 SPA fallback 覆盖 API / 健康检查路径。
+		if strings.HasPrefix(path, "/api/") || path == "/healthz" {
+			c.AbortWithStatus(http.StatusNotFound)
+			return
+		}
+
+		// 文件存在就直接 serve，否则回落到 index.html。
+		clean := strings.TrimPrefix(path, "/")
+		if clean == "" {
+			clean = "index.html"
+		}
+		if _, err := fs.Stat(dist, clean); err != nil {
+			c.Request.URL.Path = "/"
+		}
+		fileServer.ServeHTTP(c.Writer, c.Request)
+	})
 }
 
 // fail 统一错误响应。

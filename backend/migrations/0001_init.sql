@@ -7,7 +7,8 @@ CREATE TABLE IF NOT EXISTS channels (
     type              VARCHAR(32)  NOT NULL,
     site_url          VARCHAR(512) NOT NULL,
     username          VARCHAR(256) NOT NULL,
-    password_cipher   VARCHAR(1024) NOT NULL,
+    password_cipher   VARCHAR(4096) NOT NULL,
+    credential_mode   VARCHAR(16)  NOT NULL DEFAULT 'password',
     turnstile_enabled BOOLEAN DEFAULT false,
     captcha_config_id BIGINT,
     balance_threshold DOUBLE PRECISION DEFAULT 0,
@@ -98,6 +99,15 @@ CREATE TABLE IF NOT EXISTS notification_channels (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_notification_channels_name ON notification_channels (name);
 CREATE INDEX IF NOT EXISTS idx_notification_channels_type ON notification_channels (type);
+CREATE INDEX IF NOT EXISTS idx_notification_channels_deleted_at ON notification_channels (deleted_at);
+
+CREATE TABLE IF NOT EXISTS notification_cooldowns (
+    channel_id    BIGINT       NOT NULL,
+    event         VARCHAR(64)  NOT NULL,
+    last_sent_at  TIMESTAMPTZ  NOT NULL,
+    updated_at    TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    PRIMARY KEY (channel_id, event)
+);
 
 CREATE TABLE IF NOT EXISTS notification_logs (
     id            BIGSERIAL PRIMARY KEY,

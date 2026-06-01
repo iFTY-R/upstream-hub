@@ -44,6 +44,18 @@ scheduler:
     balanceSnapshotsDays: 90      # 余额采样保留 90 天
     notificationLogsDays: 90      # 通知发送日志保留 90 天
 
+notifications:
+  # 把一次扫描里多个分组的倍率变化合并成 1 条消息发，避免上游大调价瞬间刷屏。
+  batchRateChanges: true
+  # 涨跌幅 < X% 的 rate_changed 不推送（仍写入 rate_change_logs 表）。0 = 全发。
+  minChangePct: 0
+  # 同一上游的 balance_low 在 N 分钟内只发一次。0 = 每次扫描发现 < 阈值都发。
+  # 状态持久化在 notification_cooldowns 表，跨重启依然生效。
+  balanceLowCooldownMinutes: 60
+  # 单条通知发送失败时最多重试次数（含首次）。1 = 不重试。
+  # 退避：1s / 2s / 4s … 上限 30s。
+  sendMaxAttempts: 3
+
 log:
   level: info          # debug | info | warn | error
   format: text         # text | json
