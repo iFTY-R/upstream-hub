@@ -13,7 +13,9 @@
 FROM node:20-alpine AS frontend-builder
 WORKDIR /web
 
-RUN corepack enable
+# pnpm-workspace.yaml 用了 allowBuilds: 这种 pnpm 10.4+ 才支持的字段，
+# corepack 默认的 pnpm shim 版本可能太旧，显式 pin 一个已知兼容版本。
+RUN corepack enable && corepack prepare pnpm@10.4.0 --activate
 
 # 先拷依赖清单走缓存层
 COPY frontend/package.json frontend/pnpm-lock.yaml frontend/pnpm-workspace.yaml ./

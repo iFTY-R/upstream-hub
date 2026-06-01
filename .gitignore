@@ -49,12 +49,8 @@ postgres-data/
 # Claude / AI tooling
 .claude/
 CLAUDE.md
-
-# Temporarily excluded
-README.md
-docker-compose.yml
-Dockerfile
-docs/
-
+4
 # Frontend build info
 frontend/tsconfig.tsbuildinfo
+
+docs/ 
