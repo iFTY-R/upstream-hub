@@ -103,6 +103,30 @@ export function MonitorHeader() {
             {"刷新"}
           </Button>
 
+          {/* GitHub repo link */}
+          <Tooltip delayDuration={200}>
+            <TooltipTrigger asChild>
+              <Button
+                asChild
+                variant="outline"
+                size="icon"
+                className="size-8 border-border bg-background text-foreground hover:bg-muted"
+                aria-label="GitHub 仓库"
+              >
+                <a
+                  href="https://github.com/worryzyy/upstream-hub"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Github className="size-3.5" />
+                </a>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="text-xs">
+              {"GitHub · worryzyy/upstream-hub"}
+            </TooltipContent>
+          </Tooltip>
+
           {/* theme toggle */}
           <Button
             variant="outline"
