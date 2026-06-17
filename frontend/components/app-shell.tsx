@@ -10,7 +10,7 @@ import { DockBar } from "@/components/monitor/dock-bar"
  * 底部 Dock 承载二级页面入口和全局“新增渠道”动作。
  * 这些入口在 header 中没有重复出现，隐藏 Dock 会让设置/通知/打码页不可发现。
  */
-const SHOW_DOCK = true
+const SHOW_DOCK = false
 
 export function AppShell() {
   return (
