@@ -10,7 +10,7 @@
 #   或在 docker-compose 里写 context: .
 
 # ---------- Stage 1: 前端 ----------
-FROM node:20-alpine AS frontend-builder
+FROM --platform=$BUILDPLATFORM node:20-alpine AS frontend-builder
 WORKDIR /web
 
 # pnpm-workspace.yaml 用了 allowBuilds: 这种 pnpm 10.4+ 才支持的字段，
@@ -28,12 +28,15 @@ COPY frontend/ ./
 RUN pnpm build
 
 # ---------- Stage 2: 后端 ----------
-FROM golang:1.23-alpine AS go-builder
+FROM --platform=$BUILDPLATFORM golang:1.23-alpine AS go-builder
 WORKDIR /src
+
+ARG TARGETOS
+ARG TARGETARCH
 
 # 先 go.mod / go.sum 走缓存
 COPY backend/go.mod backend/go.sum ./
-RUN go mod download
+RUN --mount=type=cache,target=/go/pkg/mod go mod download
 
 # 然后整份 backend 源码
 COPY backend/ ./
@@ -42,7 +45,8 @@ COPY backend/ ./
 RUN rm -rf ./web/dist
 COPY --from=frontend-builder /web/dist ./web/dist
 
-RUN CGO_ENABLED=0 GOOS=linux go build \
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH:-$(go env GOARCH)} go build \
         -trimpath \
         -ldflags="-s -w" \
         -o /out/upstream-hub \
