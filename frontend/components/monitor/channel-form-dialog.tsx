@@ -101,6 +101,18 @@ function buildTokenCredential(form: FormState): string {
   })
 }
 
+function normalizeSiteURL(raw: string): string {
+  const value = raw.trim()
+  if (!value) return value
+  try {
+    const url = new URL(value)
+    url.pathname = url.pathname.replace(/\/+$/, "")
+    return url.toString().replace(/\/$/, "")
+  } catch {
+    throw new Error("站点地址必须是完整 URL，例如 https://example.com")
+  }
+}
+
 export function ChannelFormDialog({ open, onOpenChange, channel }: ChannelFormDialogProps) {
   const [form, setForm] = useState<FormState>(() => initialState(channel))
   const [submitting, setSubmitting] = useState(false)
@@ -130,6 +142,11 @@ export function ChannelFormDialog({ open, onOpenChange, channel }: ChannelFormDi
       if (!Number.isFinite(threshold) || threshold < 0) {
         throw new Error("余额阈值必须是非负数")
       }
+      const name = form.name.trim()
+      const siteURL = normalizeSiteURL(form.site_url)
+      const username = form.username.trim()
+      if (!name) throw new Error("渠道名不能为空")
+      if (!siteURL) throw new Error("站点地址不能为空")
 
       // token 模式：用户填的字段对应不同 connector 的 token JSON
       let tokenCredential = ""
@@ -173,9 +190,9 @@ export function ChannelFormDialog({ open, onOpenChange, channel }: ChannelFormDi
 
       if (isEdit) {
         const body: Record<string, unknown> = {
-          name: form.name,
-          site_url: form.site_url,
-          username: form.username,
+          name,
+          site_url: siteURL,
+          username,
           credential_mode: form.credential_mode,
           balance_threshold: threshold,
           monitor_enabled: form.monitor_enabled,
@@ -192,10 +209,10 @@ export function ChannelFormDialog({ open, onOpenChange, channel }: ChannelFormDi
         await apiFetch(`/channels`, {
           method: "POST",
           body: JSON.stringify({
-            name: form.name,
+            name,
             type: form.type,
-            site_url: form.site_url,
-            username: form.username,
+            site_url: siteURL,
+            username,
             credential_mode: form.credential_mode,
             password: isTokenMode ? "" : form.password,
             token_credential: isTokenMode ? tokenCredential : "",
@@ -262,6 +279,7 @@ export function ChannelFormDialog({ open, onOpenChange, channel }: ChannelFormDi
             <Label htmlFor="site_url">站点地址</Label>
             <Input
               id="site_url"
+              type="url"
               placeholder="https://example.com"
               value={form.site_url}
               onChange={(e) => setForm({ ...form, site_url: e.target.value })}

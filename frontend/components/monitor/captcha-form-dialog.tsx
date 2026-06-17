@@ -68,10 +68,12 @@ export function CaptchaFormDialog({ open, onOpenChange, config }: CaptchaFormDia
     setError(null)
     setSubmitting(true)
     try {
+      const name = form.name.trim()
+      if (!name) throw new Error("配置名不能为空")
       const body: Record<string, unknown> = {
-        name: form.name,
+        name,
         type: form.type,
-        endpoint: form.endpoint,
+        endpoint: form.endpoint.trim(),
         enabled: form.enabled,
       }
       if (form.api_key) body.api_key = form.api_key

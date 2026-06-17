@@ -60,6 +60,22 @@ interface ConfigState {
   secret: string
 }
 
+const configKeys: Array<keyof ConfigState> = [
+  "bot_token",
+  "chat_id",
+  "url",
+  "method",
+  "headers",
+  "host",
+  "port",
+  "username",
+  "password",
+  "from",
+  "to",
+  "webhook_url",
+  "secret",
+]
+
 interface SubRow {
   channel_id: number | null
   mode: "all" | "groups"
@@ -121,12 +137,16 @@ function initialState(c?: NotificationChannel | null): FormState {
 function buildConfigByType(type: NotificationChannelType, cfg: ConfigState): string {
   switch (type) {
     case "telegram":
+      if (!cfg.bot_token.trim() || !cfg.chat_id.trim()) {
+        throw new Error("Telegram 需要同时填写 Bot Token 和 Chat ID")
+      }
       return JSON.stringify({
-        bot_token: cfg.bot_token,
-        chat_id: cfg.chat_id,
+        bot_token: cfg.bot_token.trim(),
+        chat_id: cfg.chat_id.trim(),
       })
     case "webhook": {
-      const body: Record<string, unknown> = { url: cfg.url }
+      if (!cfg.url.trim()) throw new Error("Webhook URL 不能为空")
+      const body: Record<string, unknown> = { url: cfg.url.trim() }
       if (cfg.method && cfg.method !== "POST") body.method = cfg.method
       if (cfg.headers.trim()) {
         // 验证是合法 JSON object；不是就抛错让用户改
@@ -144,25 +164,36 @@ function buildConfigByType(type: NotificationChannelType, cfg: ConfigState): str
       if (!Number.isFinite(port) || port <= 0) throw new Error("端口必须是正整数")
       const to = cfg.to.split(",").map((s) => s.trim()).filter(Boolean)
       if (to.length === 0) throw new Error("收件人至少一个")
+      if (!cfg.host.trim()) throw new Error("SMTP Host 不能为空")
+      if (!cfg.from.trim()) throw new Error("发件人不能为空")
       return JSON.stringify({
-        host: cfg.host,
+        host: cfg.host.trim(),
         port,
-        username: cfg.username,
+        username: cfg.username.trim(),
         password: cfg.password,
-        from: cfg.from,
+        from: cfg.from.trim(),
         to,
         use_tls: cfg.use_tls,
       })
     }
     case "wecom":
-      return JSON.stringify({ webhook_url: cfg.webhook_url })
+      if (!cfg.webhook_url.trim()) throw new Error("Webhook URL 不能为空")
+      return JSON.stringify({ webhook_url: cfg.webhook_url.trim() })
     case "dingtalk":
     case "feishu": {
-      const body: Record<string, unknown> = { webhook_url: cfg.webhook_url }
-      if (cfg.secret) body.secret = cfg.secret
+      if (!cfg.webhook_url.trim()) throw new Error("Webhook URL 不能为空")
+      const body: Record<string, unknown> = { webhook_url: cfg.webhook_url.trim() }
+      if (cfg.secret.trim()) body.secret = cfg.secret.trim()
       return JSON.stringify(body)
     }
   }
+}
+
+function hasConfigInput(cfg: ConfigState): boolean {
+  return configKeys.some((key) => {
+    if (key === "method") return cfg.method !== "POST"
+    return String(cfg[key]).trim() !== ""
+  })
 }
 
 export function NotificationFormDialog({
@@ -221,22 +252,12 @@ export function NotificationFormDialog({
       }
 
       let configJSON = ""
+      const name = form.name.trim()
+      if (!name) throw new Error("渠道名不能为空")
       const requireConfig = !isEdit
-      // 判断 cfg 是否填了关键字段
-      const hasConfigInput = (() => {
-        switch (form.type) {
-          case "telegram":
-            return !!(form.cfg.bot_token || form.cfg.chat_id)
-          case "webhook":
-            return !!form.cfg.url
-          case "email":
-            return !!(form.cfg.host || form.cfg.from || form.cfg.to)
-          default:
-            return !!form.cfg.webhook_url
-        }
-      })()
+      const shouldUpdateConfig = requireConfig || hasConfigInput(form.cfg)
 
-      if (requireConfig || hasConfigInput) {
+      if (shouldUpdateConfig) {
         configJSON = buildConfigByType(form.type, form.cfg)
       }
 
@@ -249,7 +270,7 @@ export function NotificationFormDialog({
       )
 
       const body: Record<string, unknown> = {
-        name: form.name,
+        name,
         type: form.type,
         enabled: form.enabled,
         subscriptions,
@@ -422,7 +443,9 @@ interface ConfigFieldsProps {
 
 function ConfigFields({ type, cfg, updateCfg, disabled, isEdit }: ConfigFieldsProps) {
   const hint = isEdit ? (
-    <p className="text-[11px] text-muted-foreground">编辑模式下留空保留原值</p>
+    <p className="text-[11px] text-muted-foreground">
+      全部留空则保留原配置；如需修改，请填写该类型的完整配置。
+    </p>
   ) : null
 
   if (type === "telegram") {
@@ -719,7 +742,7 @@ function SubRowEditor({ row, channels, onChange, onRemove, disabled }: SubRowEdi
             <p className="text-[11px] text-muted-foreground">加载分组…</p>
           ) : groupNames.length === 0 ? (
             <p className="text-[11px] text-muted-foreground">
-              该上游暂未采集到分组数据，先去渠道页"手动刷新倍率"
+              该上游暂未采集到分组数据，先去渠道卡片点击"同步"
             </p>
           ) : (
             <ScrollArea className="max-h-32 rounded border border-border bg-muted/30 p-2">

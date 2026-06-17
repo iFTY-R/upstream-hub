@@ -7,10 +7,10 @@ import { DockBar } from "@/components/monitor/dock-bar"
 /**
  * AppShell 是所有路由共享的外壳：顶部 header + 中间 Outlet（+ 可选底部 dock）。
  *
- * 当前 Dock 暂时隐藏 —— 单用户 / 少量数据下单页布局比拆页好。
- * 把 SHOW_DOCK 改成 true 即可恢复底部导航 + 路由跳转。
+ * 底部 Dock 承载二级页面入口和全局“新增渠道”动作。
+ * 这些入口在 header 中没有重复出现，隐藏 Dock 会让设置/通知/打码页不可发现。
  */
-const SHOW_DOCK = false
+const SHOW_DOCK = true
 
 export function AppShell() {
   return (

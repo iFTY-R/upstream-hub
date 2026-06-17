@@ -72,6 +72,7 @@ function DockIcon({
       <Tooltip>
         <TooltipTrigger asChild>
           <button
+            type="button"
             ref={ref}
             onClick={onClick}
             onMouseDown={() => setPressed(true)}

@@ -527,7 +527,7 @@ export function ChannelCards() {
                     onClick={async () => {
                       const ok = await confirm({
                         title: `删除渠道 ${c.name}？`,
-                        description: "删除后该渠道的余额历史、倍率快照与登录凭据都将一并清除，且无法恢复。",
+                        description: "删除后该渠道将从面板移除，登录凭据会清除；历史记录仍保留用于审计。",
                         confirmLabel: "删除",
                         destructive: true,
                       })
