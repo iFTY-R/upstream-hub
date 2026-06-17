@@ -105,6 +105,72 @@ type DailyAggregate struct {
 	Balance float64   `json:"balance"`
 }
 
+type ConsumptionAggregate struct {
+	Today float64 `json:"today"`
+	Total float64 `json:"total"`
+}
+
+func (r *Rates) AggregateConsumption(todayStart time.Time) (ConsumptionAggregate, error) {
+	type row struct {
+		Today float64
+		Total float64
+	}
+	var out row
+	err := r.db.Raw(`
+		WITH ordered AS (
+			SELECT
+				bs.channel_id,
+				bs.balance,
+				bs.sampled_at,
+				LAG(bs.balance) OVER (
+					PARTITION BY bs.channel_id
+					ORDER BY bs.sampled_at ASC, bs.id ASC
+				) AS prev_balance,
+				COALESCE(NULLIF(c.recharge_ratio, 0), 1) AS recharge_ratio
+			FROM balance_snapshots bs
+			JOIN channels c ON c.id = bs.channel_id
+			WHERE c.deleted_at IS NULL
+			  AND (c.type <> 'sub2api' OR c.last_total_consumption IS NULL)
+		),
+		deltas AS (
+			SELECT
+				sampled_at,
+				GREATEST(prev_balance - balance, 0) / recharge_ratio AS amount
+			FROM ordered
+			WHERE prev_balance IS NOT NULL
+		),
+		usage_stats AS (
+			SELECT
+				COALESCE(SUM(
+					CASE
+						WHEN last_consumption_at >= ? THEN COALESCE(last_today_consumption, 0)
+						ELSE 0
+					END / COALESCE(NULLIF(recharge_ratio, 0), 1)
+				), 0) AS today,
+				COALESCE(SUM(COALESCE(last_total_consumption, 0) / COALESCE(NULLIF(recharge_ratio, 0), 1)), 0) AS total
+			FROM channels
+			WHERE deleted_at IS NULL
+			  AND type = 'sub2api'
+			  AND last_total_consumption IS NOT NULL
+		),
+		delta_stats AS (
+			SELECT
+				COALESCE(SUM(CASE WHEN sampled_at >= ? THEN amount ELSE 0 END), 0) AS today,
+				COALESCE(SUM(amount), 0) AS total
+			FROM deltas
+		)
+		SELECT
+			delta_stats.today + usage_stats.today AS today,
+			delta_stats.total + usage_stats.total AS total
+		FROM delta_stats
+		CROSS JOIN usage_stats
+	`, todayStart, todayStart).Scan(&out).Error
+	if err != nil {
+		return ConsumptionAggregate{}, err
+	}
+	return ConsumptionAggregate{Today: out.Today, Total: out.Total}, nil
+}
+
 // AggregateBalanceTrend 取最近 N 天的"日内最后一次余额"按渠道之和，作为总余额趋势。
 //
 // 实现：对每个 (channel_id, day) 取该天最后一次 BalanceSnapshot 的余额，再按 day 求和。

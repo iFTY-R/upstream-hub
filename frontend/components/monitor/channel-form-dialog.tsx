@@ -62,6 +62,9 @@ interface FormState {
   sub2api_access_token: string
 
   balance_threshold: string
+  recharge_ratio: string
+  recharge_url: string
+  refresh_interval_minutes: string
   monitor_enabled: boolean
   turnstile_enabled: boolean
   captcha_config_id: string // "" 表示不绑定
@@ -79,6 +82,12 @@ function initialState(c?: Channel | null): FormState {
     newapi_user_id: "",
     sub2api_access_token: "",
     balance_threshold: c?.balance_threshold != null ? String(c.balance_threshold) : "0",
+    recharge_ratio: c?.recharge_ratio != null && c.recharge_ratio > 0 ? String(c.recharge_ratio) : "1",
+    recharge_url: c?.recharge_url ?? "",
+    refresh_interval_minutes:
+      c?.refresh_interval_minutes != null && c.refresh_interval_minutes > 0
+        ? String(c.refresh_interval_minutes)
+        : "1",
     monitor_enabled: c?.monitor_enabled ?? true,
     turnstile_enabled: c?.turnstile_enabled ?? false,
     captcha_config_id: c?.captcha_config_id != null ? String(c.captcha_config_id) : "",
@@ -132,6 +141,16 @@ export function ChannelFormDialog({ open, onOpenChange, channel }: ChannelFormDi
       }
 
       // token 模式：用户填的字段对应不同 connector 的 token JSON
+      const parsedRechargeRatio =
+        form.recharge_ratio.trim() === "" ? 1 : Number(form.recharge_ratio)
+      const rechargeRatio =
+        Number.isFinite(parsedRechargeRatio) && parsedRechargeRatio > 0 ? parsedRechargeRatio : 1
+      const rechargeURL = form.recharge_url.trim()
+      const refreshInterval = Number(form.refresh_interval_minutes)
+      if (!Number.isInteger(refreshInterval) || refreshInterval < 1) {
+        throw new Error("刷新时间必须是大于等于 1 的整数分钟")
+      }
+
       let tokenCredential = ""
       if (isTokenMode) {
         if (form.type === "newapi") {
@@ -178,6 +197,9 @@ export function ChannelFormDialog({ open, onOpenChange, channel }: ChannelFormDi
           username: form.username,
           credential_mode: form.credential_mode,
           balance_threshold: threshold,
+          recharge_ratio: rechargeRatio,
+          recharge_url: rechargeURL,
+          refresh_interval_minutes: refreshInterval,
           monitor_enabled: form.monitor_enabled,
           turnstile_enabled: !isTokenMode && form.turnstile_enabled,
           captcha_config_id: captchaConfigID,
@@ -200,6 +222,9 @@ export function ChannelFormDialog({ open, onOpenChange, channel }: ChannelFormDi
             password: isTokenMode ? "" : form.password,
             token_credential: isTokenMode ? tokenCredential : "",
             balance_threshold: threshold,
+            recharge_ratio: rechargeRatio,
+            recharge_url: rechargeURL,
+            refresh_interval_minutes: refreshInterval,
             monitor_enabled: form.monitor_enabled,
             turnstile_enabled: !isTokenMode && form.turnstile_enabled,
             captcha_config_id: captchaConfigID,
@@ -431,6 +456,51 @@ export function ChannelFormDialog({ open, onOpenChange, channel }: ChannelFormDi
               onChange={(e) => setForm({ ...form, balance_threshold: e.target.value })}
               disabled={submitting}
             />
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="recharge-ratio">充值比例</Label>
+              <Input
+                id="recharge-ratio"
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="1"
+                value={form.recharge_ratio}
+                onChange={(e) => setForm({ ...form, recharge_ratio: e.target.value })}
+                disabled={submitting}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="refresh-interval">刷新时间（分钟）</Label>
+              <Input
+                id="refresh-interval"
+                type="number"
+                step="1"
+                min="1"
+                placeholder="1"
+                value={form.refresh_interval_minutes}
+                onChange={(e) =>
+                  setForm({ ...form, refresh_interval_minutes: e.target.value })
+                }
+                disabled={submitting}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="recharge-url">充值网址</Label>
+              <Input
+                id="recharge-url"
+                type="url"
+                placeholder="https://example.com/recharge"
+                value={form.recharge_url}
+                onChange={(e) => setForm({ ...form, recharge_url: e.target.value })}
+                disabled={submitting}
+              />
+            </div>
           </div>
 
           <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2">

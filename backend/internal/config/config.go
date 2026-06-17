@@ -72,6 +72,7 @@ type AuthConfig struct {
 }
 
 type SchedulerConfig struct {
+	PollCron    string          `mapstructure:"pollCron"`
 	BalanceCron string          `mapstructure:"balanceCron"`
 	RateCron    string          `mapstructure:"rateCron"`
 	Concurrency int             `mapstructure:"concurrency"`
@@ -179,7 +180,8 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("database.maxOpenConns", 20)
 	v.SetDefault("database.maxIdleConns", 5)
 
-	// CLAUDE.md 默认建议：余额 15 分钟，倍率 30 分钟。
+	v.SetDefault("scheduler.pollCron", "0 * * * * *")
+	// 旧版全局 cron 字段保留兼容；新版按渠道 refresh_interval 到期扫描。
 	v.SetDefault("scheduler.balanceCron", "37 */15 * * * *")
 	v.SetDefault("scheduler.rateCron", "13 */30 * * * *")
 	v.SetDefault("scheduler.concurrency", 4)
@@ -191,8 +193,9 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("scheduler.retention.balanceSnapshotsDays", 90)
 	v.SetDefault("scheduler.retention.notificationLogsDays", 90)
 
-	v.SetDefault("auth.enabled", false)
+	v.SetDefault("auth.enabled", true)
 	v.SetDefault("auth.username", "admin")
+	v.SetDefault("auth.password", "admin")
 	v.SetDefault("auth.sessionTTLHours", 168) // 7 天
 
 	// 通知去抖：默认开合并、不过滤涨跌幅、balance_low 1h 内不重复、失败重试 3 次。

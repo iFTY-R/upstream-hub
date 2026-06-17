@@ -44,6 +44,34 @@ export function money(value: number | null | undefined, opts?: { precise?: boole
   )
 }
 
+export function yuan(value: number | null | undefined, opts?: { precise?: boolean }) {
+  if (value == null || !Number.isFinite(value)) return "—"
+  return (
+    "¥" +
+    value.toLocaleString("en-US", {
+      minimumFractionDigits: opts?.precise ? 4 : 2,
+      maximumFractionDigits: opts?.precise ? 4 : 2,
+    })
+  )
+}
+
+export function rechargeRatio(value: number | null | undefined) {
+  return value != null && Number.isFinite(value) && value > 0 ? value : 1
+}
+
+export function convertedBalance(
+  balance: number | null | undefined,
+  ratio: number | null | undefined,
+) {
+  if (balance == null || !Number.isFinite(balance)) return null
+  return balance / rechargeRatio(ratio)
+}
+
+export function convertedRate(ratio: number, recharge: number | null | undefined) {
+  if (!Number.isFinite(ratio)) return 0
+  return ratio / rechargeRatio(recharge)
+}
+
 /** 把倍率渲染成"1.20 → 1.50"。 */
 export function ratioArrow(from: number | null | undefined, to: number) {
   const f = from == null ? "—" : from.toFixed(2)

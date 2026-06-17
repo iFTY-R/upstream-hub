@@ -4,6 +4,7 @@ package scheduler
 import (
 	"context"
 	"log/slog"
+	"sync"
 	"time"
 
 	"github.com/robfig/cron/v3"
@@ -20,6 +21,8 @@ type Scheduler struct {
 	monLogs  *storage.MonitorLogs
 	rates    *storage.Rates
 	notifies *storage.Notifications
+	runMu    sync.Mutex
+	running  bool
 }
 
 func New(
@@ -42,13 +45,12 @@ func New(
 }
 
 func (s *Scheduler) Start() error {
-	if s.cfg.BalanceCron != "" {
-		if _, err := s.cron.AddFunc(s.cfg.BalanceCron, s.runBalance); err != nil {
-			return err
-		}
+	pollCron := s.cfg.PollCron
+	if pollCron == "" {
+		pollCron = "0 * * * * *"
 	}
-	if s.cfg.RateCron != "" {
-		if _, err := s.cron.AddFunc(s.cfg.RateCron, s.runRates); err != nil {
+	if pollCron != "" {
+		if _, err := s.cron.AddFunc(pollCron, s.runDue); err != nil {
 			return err
 		}
 	}
@@ -59,6 +61,7 @@ func (s *Scheduler) Start() error {
 	}
 	s.cron.Start()
 	s.log.Info("scheduler started",
+		"pollCron", pollCron,
 		"balanceCron", s.cfg.BalanceCron,
 		"rateCron", s.cfg.RateCron,
 		"retentionCron", s.cfg.Retention.Cron,
@@ -77,6 +80,26 @@ func (s *Scheduler) runBalance() {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 	s.monitor.ScanAllBalances(ctx)
+}
+
+func (s *Scheduler) runDue() {
+	s.runMu.Lock()
+	if s.running {
+		s.runMu.Unlock()
+		s.log.Warn("skip due scan because previous run is still active")
+		return
+	}
+	s.running = true
+	s.runMu.Unlock()
+	defer func() {
+		s.runMu.Lock()
+		s.running = false
+		s.runMu.Unlock()
+	}()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+	s.monitor.ScanDue(ctx)
 }
 
 func (s *Scheduler) runRates() {

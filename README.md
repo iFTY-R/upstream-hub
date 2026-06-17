@@ -37,12 +37,12 @@ APP_SECRET=请替换为 32 字节以上随机字符串
 POSTGRES_PASSWORD=请替换为数据库密码
 ```
 
-公网访问建议同时开启后台登录：
+默认已开启后台登录，初始账号 / 密码为 `admin` / `admin`。公网访问请尽快修改：
 
 ```env
 AUTH_ENABLED=true
 ADMIN_USERNAME=admin
-ADMIN_PASSWORD=请替换为强密码
+ADMIN_PASSWORD=请替换为你的强密码
 ```
 
 启动：
