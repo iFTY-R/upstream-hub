@@ -80,7 +80,24 @@ type CreateInput struct {
 	TurnstileEnabled bool
 	CaptchaConfigID  *uint
 	BalanceThreshold float64
+	RechargeRatio    float64
+	RechargeURL      string
+	RefreshInterval  int
 	MonitorEnabled   bool
+}
+
+func normalizeRechargeRatio(v float64) float64 {
+	if v <= 0 {
+		return 1
+	}
+	return v
+}
+
+func normalizeRefreshInterval(v int) int {
+	if v <= 0 {
+		return 1
+	}
+	return v
 }
 
 func (s *Service) Create(in CreateInput) (*storage.Channel, error) {
@@ -110,6 +127,9 @@ func (s *Service) Create(in CreateInput) (*storage.Channel, error) {
 		TurnstileEnabled: in.TurnstileEnabled && mode == storage.CredentialModePassword, // token 模式不需要打码
 		CaptchaConfigID:  in.CaptchaConfigID,
 		BalanceThreshold: in.BalanceThreshold,
+		RechargeRatio:    normalizeRechargeRatio(in.RechargeRatio),
+		RechargeURL:      strings.TrimSpace(in.RechargeURL),
+		RefreshInterval:  normalizeRefreshInterval(in.RefreshInterval),
 		MonitorEnabled:   in.MonitorEnabled,
 	}
 	if mode == storage.CredentialModeToken {
@@ -133,6 +153,9 @@ type UpdateInput struct {
 	TurnstileEnabled *bool
 	CaptchaConfigID  *uint
 	BalanceThreshold *float64
+	RechargeRatio    *float64
+	RechargeURL      *string
+	RefreshInterval  *int
 	MonitorEnabled   *bool
 }
 
@@ -213,6 +236,15 @@ func (s *Service) Update(id uint, in UpdateInput) (*storage.Channel, error) {
 	}
 	if in.BalanceThreshold != nil {
 		c.BalanceThreshold = *in.BalanceThreshold
+	}
+	if in.RechargeRatio != nil {
+		c.RechargeRatio = normalizeRechargeRatio(*in.RechargeRatio)
+	}
+	if in.RechargeURL != nil {
+		c.RechargeURL = strings.TrimSpace(*in.RechargeURL)
+	}
+	if in.RefreshInterval != nil {
+		c.RefreshInterval = normalizeRefreshInterval(*in.RefreshInterval)
 	}
 	if in.MonitorEnabled != nil {
 		c.MonitorEnabled = *in.MonitorEnabled

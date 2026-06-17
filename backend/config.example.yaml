@@ -27,16 +27,17 @@ auth:
   # password 留空 → 播种 admin/admin 且首次登录强制改密；填了强密码 → 用它且无需改密。
   # 也可分别用 ADMIN_USERNAME / ADMIN_PASSWORD 环境变量覆盖。
   username: "admin"
-  password: ""
+  password: "admin"
   # token 签名密钥；留空时回退使用 security.appSecret。
   tokenSecret: ""
   # 登录 token 有效期（小时），默认 168 = 7 天。
   sessionTTLHours: 168
 
 scheduler:
-  # 余额监控：每 15 分钟（错开 0/30 秒以避免和其他服务同步刷）。
+  # 每分钟检查一次到期渠道；每个渠道自己的刷新时间在后台编辑里设置。
+  pollCron: "0 * * * * *"
+  # 旧版全局 cron 字段保留兼容；新版按渠道 refresh_interval_minutes 生效。
   balanceCron: "37 */15 * * * *"
-  # 倍率监控：每 30 分钟。
   rateCron:    "13 */30 * * * *"
   concurrency: 4
   # 历史数据清理。字段 = 0 表示该表不清理；cron 留空则不启动清理任务。

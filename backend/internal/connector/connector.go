@@ -1,12 +1,4 @@
-// Package connector 定义上游渠道连接器接口与公共类型，由 newapi / sub2api 等子包注册具体实现。
-//
-// 使用方法：
-//
-//	import _ "github.com/worryzyy/upstream-hub/internal/connector/newapi"
-//	import _ "github.com/worryzyy/upstream-hub/internal/connector/sub2api"
-//
-//	c, err := connector.For("newapi")
-//	session, err := c.Login(ctx, channel)
+// Package connector defines the common upstream connector interface.
 package connector
 
 import (
@@ -16,7 +8,7 @@ import (
 	"time"
 )
 
-// ChannelType 渠道类型枚举，与 storage.ChannelType 同步。
+// ChannelType identifies the upstream API family.
 type ChannelType string
 
 const (
@@ -24,7 +16,7 @@ const (
 	TypeSub2API ChannelType = "sub2api"
 )
 
-// Channel 已解密的渠道连接信息，由 channel 层负责构造。
+// Channel is the decrypted channel configuration passed to connectors.
 type Channel struct {
 	ID               uint
 	Name             string
@@ -33,14 +25,11 @@ type Channel struct {
 	Username         string
 	Password         string
 	TurnstileEnabled bool
-	// TurnstileToken 由调用方在 Login 前预先求解打码后填入；为空则直接发起登录。
-	TurnstileToken string
+	TurnstileToken   string
 }
 
-// AuthSession 登录后产生的会话凭据。明文，由 channel 层负责加密落库。
+// AuthSession is the plain session material used by connectors.
 type AuthSession struct {
-	// UserID 上游账号 ID 字符串。NewAPI 必须在后续请求头里附带 `New-Api-User: <id>`。
-	// 不是机密信息，channel 层按明文存。
 	UserID      string
 	AccessToken string
 	Cookie      string
@@ -48,13 +37,13 @@ type AuthSession struct {
 	ExpiresAt   time.Time
 }
 
-// BalanceResult 一次余额采集结果。Balance 已经换算成显示单位（一般是 USD 等值）。
+// BalanceResult is one balance collection result in upstream account units.
 type BalanceResult struct {
 	Balance   float64
 	SampledAt time.Time
 }
 
-// RateResult 一条倍率记录。ModelName 在两个上游分别是"分组名"，Description 是该分组的描述（来自上游接口）。
+// RateResult is one visible upstream group/model multiplier record.
 type RateResult struct {
 	ModelName       string
 	Description     string
@@ -62,25 +51,30 @@ type RateResult struct {
 	CompletionRatio float64
 }
 
-// Connector 上游连接器统一接口。
-//
-//   - GetTurnstileSiteKey  从上游公开接口读取 Turnstile site key（无需鉴权）
-//   - Login                登录获取 session
-//   - CheckAuth            使用现有 session 做一次轻量校验，确认未过期
-//   - GetBalance           拉取当前余额
-//   - GetRates             拉取当前所有可见的倍率
-type Connector interface {
-	// GetTurnstileSiteKey 返回上游当前的 Turnstile site key。
-	// 站点没有开启 Turnstile 时返回 ""（不视作错误）。
-	GetTurnstileSiteKey(ctx context.Context, channel *Channel) (string, error)
+// UsageStatsResult is an optional upstream-provided consumption snapshot.
+// Costs are in the upstream account unit before recharge-ratio conversion.
+type UsageStatsResult struct {
+	TodayActualCost float64
+	TotalActualCost float64
+	SampledAt       time.Time
+}
 
+// Connector is the common interface every upstream implementation provides.
+type Connector interface {
+	GetTurnstileSiteKey(ctx context.Context, channel *Channel) (string, error)
 	Login(ctx context.Context, channel *Channel) (*AuthSession, error)
 	CheckAuth(ctx context.Context, channel *Channel, session *AuthSession) error
 	GetBalance(ctx context.Context, channel *Channel, session *AuthSession) (*BalanceResult, error)
 	GetRates(ctx context.Context, channel *Channel, session *AuthSession) ([]RateResult, error)
 }
 
-// Factory 构造一个全新的 Connector 实例。
+// UsageStatsProvider is implemented by connectors whose upstream exposes a
+// real usage ledger, avoiding balance-delta undercount when users recharge.
+type UsageStatsProvider interface {
+	GetUsageStats(ctx context.Context, channel *Channel, session *AuthSession) (*UsageStatsResult, error)
+}
+
+// Factory constructs a fresh Connector.
 type Factory func() Connector
 
 var (
@@ -88,14 +82,14 @@ var (
 	registry = map[ChannelType]Factory{}
 )
 
-// Register 由子包在 init() 中调用，注册其类型对应的 Connector 构造器。
+// Register associates a connector factory with a channel type.
 func Register(t ChannelType, f Factory) {
 	mu.Lock()
 	defer mu.Unlock()
 	registry[t] = f
 }
 
-// For 按 ChannelType 取一个新的 Connector。未注册返回错误。
+// For returns a new connector for a channel type.
 func For(t ChannelType) (Connector, error) {
 	mu.RLock()
 	defer mu.RUnlock()

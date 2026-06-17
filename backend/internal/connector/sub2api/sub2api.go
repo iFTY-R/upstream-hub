@@ -24,7 +24,7 @@ type Client struct {
 
 func New() *Client {
 	c := resty.New().
-		SetTimeout(30 * time.Second).
+		SetTimeout(30*time.Second).
 		SetHeader("User-Agent", "upstream-hub/0.1").
 		SetHeader("Accept", "application/json")
 	return &Client{http: c}
@@ -169,6 +169,25 @@ func (c *Client) GetRates(ctx context.Context, ch *connector.Channel, session *c
 		})
 	}
 	return out, nil
+}
+
+func (c *Client) GetUsageStats(ctx context.Context, ch *connector.Channel, session *connector.AuthSession) (*connector.UsageStatsResult, error) {
+	body, err := c.getJSON(ctx, strings.TrimRight(ch.SiteURL, "/")+"/api/v1/usage/dashboard/stats", session)
+	if err != nil {
+		return nil, fmt.Errorf("sub2api usage stats: %w", err)
+	}
+	var stats struct {
+		TodayActualCost float64 `json:"today_actual_cost"`
+		TotalActualCost float64 `json:"total_actual_cost"`
+	}
+	if err := json.Unmarshal(body, &stats); err != nil {
+		return nil, fmt.Errorf("sub2api usage stats decode: %w", err)
+	}
+	return &connector.UsageStatsResult{
+		TodayActualCost: stats.TodayActualCost,
+		TotalActualCost: stats.TotalActualCost,
+		SampledAt:       time.Now(),
+	}, nil
 }
 
 func (c *Client) getJSON(ctx context.Context, url string, session *connector.AuthSession) ([]byte, error) {

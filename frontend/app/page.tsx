@@ -9,6 +9,8 @@ export default function Page() {
     <>
       <KpiRow />
 
+      <ChannelCards />
+
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-5">
         <div className="lg:col-span-3">
           <BalanceOverview />
@@ -17,8 +19,6 @@ export default function Page() {
           <MultiplierChanges />
         </div>
       </div>
-
-      <ChannelCards />
 
       <BottomPanels />
     </>

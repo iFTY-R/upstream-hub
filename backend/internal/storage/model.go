@@ -48,12 +48,18 @@ type Channel struct {
 	TurnstileEnabled bool           `gorm:"default:false" json:"turnstile_enabled"`
 	CaptchaConfigID  *uint          `json:"captcha_config_id,omitempty"`
 	BalanceThreshold float64        `gorm:"default:0" json:"balance_threshold"`
+	RechargeRatio    float64        `gorm:"not null;default:1" json:"recharge_ratio"`
+	RechargeURL      string         `gorm:"size:512" json:"recharge_url,omitempty"`
+	RefreshInterval  int            `gorm:"not null;default:1" json:"refresh_interval_minutes"`
 	MonitorEnabled   bool           `gorm:"default:true" json:"monitor_enabled"`
 
 	// 最近一次采集结果（聚合视图，便于列表页直接展示）
-	LastBalance   *float64   `json:"last_balance,omitempty"`
-	LastBalanceAt *time.Time `json:"last_balance_at,omitempty"`
-	LastError     string     `gorm:"type:text" json:"last_error,omitempty"`
+	LastBalance          *float64   `json:"last_balance,omitempty"`
+	LastBalanceAt        *time.Time `json:"last_balance_at,omitempty"`
+	LastError            string     `gorm:"type:text" json:"last_error,omitempty"`
+	LastTodayConsumption *float64   `json:"last_today_consumption,omitempty"`
+	LastTotalConsumption *float64   `json:"last_total_consumption,omitempty"`
+	LastConsumptionAt    *time.Time `json:"last_consumption_at,omitempty"`
 
 	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `json:"updated_at"`

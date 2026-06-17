@@ -7,7 +7,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { useChannels, useChannelRates } from "@/lib/queries"
-import { channelTypeLabel, relativeTime } from "@/lib/format"
+import { channelTypeLabel, convertedRate, rechargeRatio, relativeTime } from "@/lib/format"
 import { cn } from "@/lib/utils"
 import type { Channel } from "@/lib/api-types"
 
@@ -27,7 +27,10 @@ function ratioTone(r: number): string {
 
 function ChannelRateRow({ channel }: { channel: Channel }) {
   const { data, loading } = useChannelRates(channel.id)
-  const rates = [...(data ?? [])].sort((a, b) => a.ratio - b.ratio)
+  const ratio = rechargeRatio(channel.recharge_ratio)
+  const rates = [...(data ?? [])].sort(
+    (a, b) => convertedRate(a.ratio, ratio) - convertedRate(b.ratio, ratio),
+  )
   const latest = rates[0]?.last_seen_at
 
   return (
@@ -67,6 +70,7 @@ function ChannelRateRow({ channel }: { channel: Channel }) {
         ) : (
           <div className="flex flex-wrap gap-1.5">
             {rates.map((r) => {
+              const displayRatio = convertedRate(r.ratio, ratio)
               const updated = `最近更新：${relativeTime(r.last_seen_at)}`
               const chip = (
                 <span
@@ -74,11 +78,11 @@ function ChannelRateRow({ channel }: { channel: Channel }) {
                   className={cn(
                     "inline-flex cursor-default items-center gap-1.5 rounded-md px-2 py-0.5 text-xs ring-1 ring-inset transition-colors",
                     "hover:bg-muted/60",
-                    ratioTone(r.ratio),
+                    ratioTone(displayRatio),
                   )}
                 >
                   <span className="font-medium">{r.model_name}</span>
-                  <span className="font-semibold tabular-nums">{r.ratio.toFixed(2)}</span>
+                  <span className="font-semibold tabular-nums">{displayRatio.toFixed(2)}</span>
                 </span>
               )
               return (

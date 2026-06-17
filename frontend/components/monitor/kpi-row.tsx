@@ -1,10 +1,10 @@
 "use client"
 
-import { ArrowUpRight, DollarSign, MessageSquare } from "lucide-react"
+import { ArrowDownRight, ArrowUpRight, DollarSign, MessageSquare } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 import { useDashboardSummary, useRateChanges } from "@/lib/queries"
-import { money } from "@/lib/format"
+import { yuan } from "@/lib/format"
 import type { LucideIcon } from "lucide-react"
 import type { ReactNode } from "react"
 
@@ -32,6 +32,8 @@ export function KpiRow() {
   const active = data?.active_channels ?? 0
   const failed = data?.failed_channels ?? 0
   const totalBalance = data?.total_balance ?? 0
+  const todayConsumption = data?.today_consumption ?? 0
+  const totalConsumption = data?.total_consumption ?? 0
   const lowest = data?.lowest_balance ?? null
 
   const todayChangeCount = countTodayChanges(recentChanges.data ?? [])
@@ -39,7 +41,7 @@ export function KpiRow() {
   const kpis: Kpi[] = [
     {
       label: "总余额",
-      value: money(totalBalance),
+      value: yuan(totalBalance),
       icon: DollarSign,
       iconBg: "bg-brand/10",
       iconColor: "text-brand",
@@ -48,10 +50,23 @@ export function KpiRow() {
           {"最低："}
           <span className="font-medium text-foreground">{lowest.name}</span>
           {" "}
-          <span className="text-warning">{money(lowest.balance)}</span>
+          <span className="text-warning">{yuan(lowest.balance)}</span>
         </span>
       ) : (
         <span className="text-muted-foreground">{"—"}</span>
+      ),
+    },
+    {
+      label: "今日总消费",
+      value: yuan(todayConsumption),
+      icon: ArrowDownRight,
+      iconBg: "bg-warning/10",
+      iconColor: "text-warning",
+      footer: (
+        <span className="text-muted-foreground">
+          {"累积消费 "}
+          <span className="font-medium text-foreground">{yuan(totalConsumption)}</span>
+        </span>
       ),
     },
     {
@@ -97,7 +112,7 @@ export function KpiRow() {
   ]
 
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
       {kpis.map((k) => (
         <Card
           key={k.label}

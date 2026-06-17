@@ -4,7 +4,7 @@ import { ArrowDownRight, ArrowUpRight } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useDashboardSummary, useChannels } from "@/lib/queries"
-import { channelTypeLabel, ratioDelta, relativeTime, shortTime } from "@/lib/format"
+import { channelTypeLabel, convertedRate, ratioDelta, relativeTime, shortTime } from "@/lib/format"
 import { cn } from "@/lib/utils"
 import { useMemo } from "react"
 
@@ -13,10 +13,13 @@ export function MultiplierChanges() {
   const channels = useChannels()
 
   const channelMap = useMemo(() => {
-    const m = new Map<number, { name: string; type: string }>()
-    for (const c of channels.data ?? []) m.set(c.id, { name: c.name, type: c.type })
+    const m = new Map<number, { name: string; type: string; recharge_ratio: number }>()
+    for (const c of summary.data?.channels ?? [])
+      m.set(c.id, { name: c.name, type: c.type, recharge_ratio: c.recharge_ratio })
+    for (const c of channels.data ?? [])
+      m.set(c.id, { name: c.name, type: c.type, recharge_ratio: c.recharge_ratio })
     return m
-  }, [channels.data])
+  }, [channels.data, summary.data?.channels])
 
   const items = summary.data?.recent_rate_changes ?? []
 
@@ -36,7 +39,10 @@ export function MultiplierChanges() {
             <ul className="divide-y divide-border">
               {items.map((m) => {
                 const ch = channelMap.get(m.channel_id)
-                const delta = ratioDelta(m.old_ratio, m.new_ratio)
+                const displayOld =
+                  m.old_ratio == null ? null : convertedRate(m.old_ratio, ch?.recharge_ratio)
+                const displayNew = convertedRate(m.new_ratio, ch?.recharge_ratio)
+                const delta = ratioDelta(displayOld, displayNew)
                 const isUp = delta.direction === "up"
                 const chType = ch?.type ?? ""
                 return (
@@ -69,11 +75,11 @@ export function MultiplierChanges() {
                           <span className="text-muted-foreground">{"倍率"}</span>
                           <p className="mt-0.5 tabular-nums">
                             <span className="text-muted-foreground">
-                              {m.old_ratio == null ? "—" : m.old_ratio.toFixed(2)}
+                              {displayOld == null ? "—" : displayOld.toFixed(2)}
                             </span>
                             <span className="mx-1 text-muted-foreground">{"→"}</span>
                             <span className={cn("font-medium", isUp ? "text-danger" : "text-success")}>
-                              {m.new_ratio.toFixed(2)}
+                              {displayNew.toFixed(2)}
                             </span>
                           </p>
                         </div>

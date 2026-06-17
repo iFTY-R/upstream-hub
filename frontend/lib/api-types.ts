@@ -41,9 +41,15 @@ export interface Channel {
   turnstile_enabled: boolean
   captcha_config_id?: number | null
   balance_threshold: number
+  recharge_ratio: number
+  recharge_url?: string
+  refresh_interval_minutes: number
   monitor_enabled: boolean
   last_balance?: number | null
   last_balance_at?: string | null
+  last_today_consumption?: number | null
+  last_total_consumption?: number | null
+  last_consumption_at?: string | null
   last_error?: string
   created_at: string
   updated_at: string
@@ -138,7 +144,13 @@ export interface DashboardChannelStat {
   name: string
   type: string
   monitor_enabled: boolean
+  recharge_ratio: number
+  recharge_url?: string
+  refresh_interval_minutes: number
   last_balance?: number | null
+  last_today_consumption?: number | null
+  last_total_consumption?: number | null
+  last_consumption_at?: string | null
   last_error?: string
 }
 
@@ -147,6 +159,8 @@ export interface DashboardSummary {
   active_channels: number
   failed_channels: number
   total_balance: number
+  today_consumption: number
+  total_consumption: number
   lowest_balance: DashboardLowest | null
   channels: DashboardChannelStat[]
   recent_rate_changes: RateChangeLog[]

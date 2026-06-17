@@ -5,6 +5,7 @@ import { toast } from "sonner"
 import {
   CheckCircle2,
   ChevronDown,
+  ExternalLink,
   Loader2,
   LogIn,
   Pause,
@@ -26,7 +27,14 @@ import { useConfirm } from "@/components/ui/confirm-dialog"
 import { useChannels, useChannelRates } from "@/lib/queries"
 import { apiFetch } from "@/lib/api"
 import { useTriggerRefresh } from "@/lib/refresh-context"
-import { channelTypeLabel, money, relativeTime } from "@/lib/format"
+import {
+  channelTypeLabel,
+  convertedBalance,
+  convertedRate,
+  rechargeRatio,
+  relativeTime,
+  yuan,
+} from "@/lib/format"
 import { cn } from "@/lib/utils"
 import { syncChannelStream, testLoginStream, type ProgressEvent } from "@/lib/sync-stream"
 import type { Channel } from "@/lib/api-types"
@@ -66,9 +74,11 @@ function ratioTone(r: number): string {
 }
 
 /** InlineRates 在渠道卡片内部展示当前所有分组倍率，默认 2 行折叠 + 展开按钮。 */
-function InlineRates({ channelID }: { channelID: number }) {
+function InlineRates({ channelID, recharge }: { channelID: number; recharge: number }) {
   const { data, loading } = useChannelRates(channelID)
-  const rates = [...(data ?? [])].sort((a, b) => a.ratio - b.ratio)
+  const rates = [...(data ?? [])].sort(
+    (a, b) => convertedRate(a.ratio, recharge) - convertedRate(b.ratio, recharge),
+  )
   const [expanded, setExpanded] = useState(false)
   const [hasOverflow, setHasOverflow] = useState(false)
   const chipBoxRef = useRef<HTMLDivElement>(null)
@@ -120,22 +130,24 @@ function InlineRates({ channelID }: { channelID: number }) {
         <div
           ref={chipBoxRef}
           className={cn(
-            "flex flex-wrap gap-1 overflow-hidden transition-[max-height] duration-300 ease-out",
-            // 收起：max-h-12 (~48px) 约 2 行；展开：足够大的上限，留点缓冲让 transition 不立即消失。
-            expanded ? "max-h-150" : "max-h-12",
+            "flex flex-wrap content-start gap-1 transition-[height] duration-300 ease-out",
+            // 收起和展开都固定高度，保证同一状态下每张渠道卡片等高。
+            expanded ? "h-40 overflow-y-auto pr-1" : "h-12 overflow-hidden",
           )}
         >
-          {rates.map((r) => (
+          {rates.map((r) => {
+            const displayRatio = convertedRate(r.ratio, recharge)
+            return (
             <Tooltip key={r.id} delayDuration={150}>
               <TooltipTrigger asChild>
                 <span
                   className={cn(
                     "inline-flex cursor-default items-center gap-1 rounded px-1.5 py-0.5 text-[11px] ring-1 ring-inset transition-colors hover:bg-muted/60",
-                    ratioTone(r.ratio),
+                    ratioTone(displayRatio),
                   )}
                 >
                   <span className="font-medium">{r.model_name}</span>
-                  <span className="font-semibold tabular-nums">{r.ratio.toFixed(2)}</span>
+                  <span className="font-semibold tabular-nums">{displayRatio.toFixed(2)}</span>
                 </span>
               </TooltipTrigger>
               <TooltipContent side="top" className="max-w-xs text-xs">
@@ -151,7 +163,8 @@ function InlineRates({ channelID }: { channelID: number }) {
                 </p>
               </TooltipContent>
             </Tooltip>
-          ))}
+            )
+          })}
         </div>
         {/* 折叠时底部淡出，提示还有更多内容 */}
         {!expanded && hasOverflow ? (
@@ -369,6 +382,15 @@ export function ChannelCards() {
     }
   }
 
+  function openRecharge(url?: string) {
+    const rechargeURL = url?.trim()
+    if (!rechargeURL) {
+      toast.warning("没添加充值网址")
+      return
+    }
+    window.open(rechargeURL, "_blank", "noopener,noreferrer")
+  }
+
   return (
     <section>
       <div className="mb-3 flex items-center justify-between">
@@ -414,12 +436,19 @@ export function ChannelCards() {
           </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
+        <div className="grid auto-rows-fr grid-cols-1 items-stretch gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
           {channels.map((c) => {
             const status = statusOf(c)
             const meta = statusMap[status]
+            const ratio = rechargeRatio(c.recharge_ratio)
+            const displayBalance = convertedBalance(c.last_balance, ratio)
+            const displayThreshold =
+              c.balance_threshold > 0 ? convertedBalance(c.balance_threshold, ratio) : null
+            const displayTodayConsumption = convertedBalance(c.last_today_consumption, ratio)
+            const displayTotalConsumption = convertedBalance(c.last_total_consumption, ratio)
+            const rechargeURL = c.recharge_url?.trim()
             return (
-              <Card key={c.id} className="flex flex-col gap-0 border border-border p-4 shadow-none">
+              <Card key={c.id} className="flex h-full flex-col gap-0 border border-border p-4 shadow-none">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-semibold text-foreground">{c.name}</span>
                   <span
@@ -440,8 +469,11 @@ export function ChannelCards() {
                 </div>
 
                 <div className="mt-3 divide-y divide-border">
-                  <Row label="余额">{money(c.last_balance)}</Row>
-                  <Row label="阈值">{c.balance_threshold > 0 ? money(c.balance_threshold) : "未设置"}</Row>
+                  <Row label="余额">{yuan(displayBalance)}</Row>
+                  <Row label="今日消费">{yuan(displayTodayConsumption)}</Row>
+                  <Row label="累计消费">{yuan(displayTotalConsumption)}</Row>
+                  <Row label="阈值">{displayThreshold != null ? yuan(displayThreshold) : "未设置"}</Row>
+                  <Row label="充值比例">{ratio.toFixed(2)}</Row>
                   <Row label="状态">
                     <span className={cn("inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium", meta.cls)}>
                       {meta.label}
@@ -457,9 +489,14 @@ export function ChannelCards() {
                   ) : null}
                 </div>
 
-                <InlineRates channelID={c.id} />
+                <InlineRates channelID={c.id} recharge={ratio} />
 
-                <div className="mt-3 grid grid-cols-3 gap-2">
+                <div
+                  className={cn(
+                    "mt-auto grid gap-2 pt-3",
+                    "grid-cols-2 sm:grid-cols-4",
+                  )}
+                >
                   <Button
                     variant="outline"
                     size="sm"
@@ -493,6 +530,15 @@ export function ChannelCards() {
                   >
                     <Pencil className="size-3" />
                     {"编辑"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1 text-xs"
+                    onClick={() => openRecharge(rechargeURL)}
+                  >
+                    <ExternalLink className="size-3" />
+                    {"充值"}
                   </Button>
                 </div>
 

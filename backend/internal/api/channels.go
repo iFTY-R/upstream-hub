@@ -41,6 +41,9 @@ type channelInput struct {
 	TurnstileEnabled bool                   `json:"turnstile_enabled"`
 	CaptchaConfigID  *uint                  `json:"captcha_config_id"`
 	BalanceThreshold float64                `json:"balance_threshold"`
+	RechargeRatio    float64                `json:"recharge_ratio"`
+	RechargeURL      string                 `json:"recharge_url"`
+	RefreshInterval  int                    `json:"refresh_interval_minutes"`
 	MonitorEnabled   bool                   `json:"monitor_enabled"`
 }
 
@@ -54,6 +57,9 @@ type channelUpdateInput struct {
 	TurnstileEnabled *bool                   `json:"turnstile_enabled"`
 	CaptchaConfigID  *uint                   `json:"captcha_config_id"`
 	BalanceThreshold *float64                `json:"balance_threshold"`
+	RechargeRatio    *float64                `json:"recharge_ratio"`
+	RechargeURL      *string                 `json:"recharge_url"`
+	RefreshInterval  *int                    `json:"refresh_interval_minutes"`
 	MonitorEnabled   *bool                   `json:"monitor_enabled"`
 }
 
@@ -83,6 +89,9 @@ func createChannel(c *gin.Context, d *Deps) {
 		TurnstileEnabled: in.TurnstileEnabled,
 		CaptchaConfigID:  in.CaptchaConfigID,
 		BalanceThreshold: in.BalanceThreshold,
+		RechargeRatio:    in.RechargeRatio,
+		RechargeURL:      in.RechargeURL,
+		RefreshInterval:  in.RefreshInterval,
 		MonitorEnabled:   in.MonitorEnabled,
 	})
 	if err != nil {
@@ -127,6 +136,9 @@ func updateChannel(c *gin.Context, d *Deps) {
 		TurnstileEnabled: in.TurnstileEnabled,
 		CaptchaConfigID:  in.CaptchaConfigID,
 		BalanceThreshold: in.BalanceThreshold,
+		RechargeRatio:    in.RechargeRatio,
+		RechargeURL:      in.RechargeURL,
+		RefreshInterval:  in.RefreshInterval,
 		MonitorEnabled:   in.MonitorEnabled,
 	})
 	if err != nil {

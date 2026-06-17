@@ -72,6 +72,25 @@ func (s *Service) ScanAllRates(ctx context.Context) {
 	}
 }
 
+// ScanDue 刷新所有到达各自 refresh_interval 的渠道。
+func (s *Service) ScanDue(ctx context.Context) {
+	list, err := s.channels.ListDueForRefresh(time.Now())
+	if err != nil {
+		s.log.Error("list due channels", "err", err)
+		return
+	}
+	for i := range list {
+		c := list[i]
+		if err := s.RefreshBalance(ctx, &c); err != nil {
+			s.log.Warn("refresh balance failed", "channel", c.Name, "err", err)
+			continue
+		}
+		if err := s.RefreshRates(ctx, &c); err != nil {
+			s.log.Warn("refresh rates failed", "channel", c.Name, "err", err)
+		}
+	}
+}
+
 // RefreshBalance 单个渠道余额刷新，可被 API 手动触发。
 func (s *Service) RefreshBalance(ctx context.Context, c *storage.Channel) error {
 	resolved, conn, session, err := s.prepare(ctx, c)
@@ -105,6 +124,9 @@ func (s *Service) RefreshBalance(ctx context.Context, c *storage.Channel) error 
 	if err := s.channels.UpdateBalance(c.ID, res.Balance, &sampledAt, ""); err != nil {
 		return err
 	}
+	if err := s.refreshUsageStats(ctx, c, resolved, conn, session); err != nil {
+		return err
+	}
 	_ = s.rates.AppendBalance(&storage.BalanceSnapshot{
 		ChannelID: c.ID,
 		Balance:   res.Balance,
@@ -126,6 +148,23 @@ func (s *Service) RefreshBalance(ctx context.Context, c *storage.Channel) error 
 }
 
 // RefreshRates 单个渠道倍率刷新，可被 API 手动触发。
+func (s *Service) refreshUsageStats(ctx context.Context, c *storage.Channel, resolved *connector.Channel, conn connector.Connector, session *connector.AuthSession) error {
+	usageProvider, ok := conn.(connector.UsageStatsProvider)
+	if !ok {
+		return nil
+	}
+	stats, err := usageProvider.GetUsageStats(ctx, resolved, session)
+	if err != nil {
+		s.log.Warn("refresh usage stats failed", "channel", c.Name, "err", err)
+		return nil
+	}
+	usageAt := stats.SampledAt
+	if usageAt.IsZero() {
+		usageAt = time.Now()
+	}
+	return s.channels.UpdateConsumption(c.ID, stats.TodayActualCost, stats.TotalActualCost, usageAt)
+}
+
 func (s *Service) RefreshRates(ctx context.Context, c *storage.Channel) error {
 	resolved, conn, session, err := s.prepare(ctx, c)
 	if err != nil {
