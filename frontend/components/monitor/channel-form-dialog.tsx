@@ -416,7 +416,7 @@ export function ChannelFormDialog({ open, onOpenChange, channel }: ChannelFormDi
                       value={form.newapi_cookie}
                       onChange={(e) => setForm({ ...form, newapi_cookie: e.target.value })}
                       rows={3}
-                      className="text-xs font-mono"
+                      className="break-all text-xs font-mono"
                       disabled={submitting}
                     />
                   </div>
@@ -455,7 +455,7 @@ export function ChannelFormDialog({ open, onOpenChange, channel }: ChannelFormDi
                       setForm({ ...form, sub2api_access_token: e.target.value })
                     }
                     rows={3}
-                    className="text-xs font-mono"
+                    className="break-all text-xs font-mono"
                     disabled={submitting}
                   />
                 </div>

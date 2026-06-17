@@ -58,9 +58,9 @@ const statusMap: Record<Status, { label: string; cls: string }> = {
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-between py-1">
-      <span className="text-xs text-muted-foreground">{label}</span>
-      <span className="text-xs font-medium text-foreground">{children}</span>
+    <div className="flex min-w-0 items-center justify-between gap-3 py-1">
+      <span className="shrink-0 text-xs text-muted-foreground">{label}</span>
+      <span className="min-w-0 break-all text-right text-xs font-medium text-foreground">{children}</span>
     </div>
   )
 }
@@ -449,11 +449,13 @@ export function ChannelCards() {
             const rechargeURL = c.recharge_url?.trim()
             return (
               <Card key={c.id} className="flex h-full flex-col gap-0 border border-border p-4 shadow-none">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold text-foreground">{c.name}</span>
+                <div className="flex min-w-0 items-center gap-2">
+                  <span className="min-w-0 truncate text-sm font-semibold text-foreground" title={c.name}>
+                    {c.name}
+                  </span>
                   <span
                     className={cn(
-                      "inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium ring-1 ring-inset",
+                      "inline-flex shrink-0 items-center rounded px-1.5 py-0.5 text-[10px] font-medium ring-1 ring-inset",
                       c.type === "newapi"
                         ? "bg-brand/10 text-brand ring-brand/20"
                         : "bg-foreground/5 text-foreground ring-border",
@@ -462,7 +464,7 @@ export function ChannelCards() {
                     {channelTypeLabel(c.type)}
                   </span>
                   {!c.monitor_enabled ? (
-                    <span className="inline-flex items-center rounded bg-muted/60 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                    <span className="inline-flex shrink-0 items-center rounded bg-muted/60 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
                       {"已暂停"}
                     </span>
                   ) : null}
